@@ -53,6 +53,32 @@ publicRoutes.get('/api/status', async (c) => {
   }
 });
 
+// POST /telegram - Telegram webhook endpoint (no auth required for Telegram's servers)
+publicRoutes.post('/telegram', async (c) => {
+  const sandbox = c.get('sandbox');
+  
+  try {
+    const process = await findExistingMoltbotProcess(sandbox);
+    if (!process) {
+      return c.json({ ok: false, error: 'Gateway not running' }, 503);
+    }
+    
+    // Forward the webhook request to the moltbot gateway
+    const response = await fetch(`http://localhost:${MOLTBOT_PORT}/telegram`, {
+      method: 'POST',
+      headers: c.req.raw.headers,
+      body: await c.req.raw.clone().text(),
+    });
+    
+    return new Response(response.body, {
+      status: response.status,
+      headers: response.headers,
+    });
+  } catch (err) {
+    return c.json({ ok: false, error: err instanceof Error ? err.message : 'Unknown error' }, 500);
+  }
+});
+
 // GET /_admin/assets/* - Admin UI static assets (CSS, JS need to load for login redirect)
 // Assets are built to dist/client with base "/_admin/"
 publicRoutes.get('/_admin/assets/*', async (c) => {
